@@ -1,0 +1,13 @@
+#!/bin/sh
+# Sourced (not exec'd - .envsh extension) by the official nginx image's own
+# /docker-entrypoint.sh, so exports here persist into the nginx process and
+# into later docker-entrypoint.d/*.sh scripts (including this image's own
+# rule-config/activation scripts that read $BACKEND).
+#
+# Rock8Cloud links the private "wordpress" service's internal HOST/PORT into
+# this service as WP_HOST/WP_PORT (see PROGRESS.md). Compose them into the
+# BACKEND format this image expects: http://host:port
+if [ -n "${WP_HOST:-}" ] && [ -n "${WP_PORT:-}" ]; then
+    export BACKEND="http://${WP_HOST}:${WP_PORT}"
+    echo "[05-compose-backend] BACKEND set to ${BACKEND}"
+fi

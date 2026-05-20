@@ -1,0 +1,32 @@
+# Local exclusion, loaded before the main CRS rule files run (this is
+# CRS's own documented hook point for exactly this - not a guess).
+#
+# WordPress's Gutenberg block editor stores its block structure as raw
+# HTML (comments like "<!-- wp:paragraph -->", and real tags like
+# "<img>"/"<figure>" for blocks such as wp:image) inside the JSON it
+# POSTs to the REST API when saving/autosaving. Two separate CRS rules
+# flag this as an attack - both documented WordPress false positives,
+# not actual attacks (separately verified per rule, not assumed to be
+# the same report):
+#   941180 - "Node-Validator Blacklist Keywords", matches the literal
+#            "<!--" from block comments. coreruleset/coreruleset#1309,
+#            #1618.
+#   941160 - "NoScript XSS InjectionChecker: HTML Injection", matches
+#            real inline tags like the <img> a wp:image block embeds.
+#            SpiderLabs/owasp-modsecurity-crs#860 ("941160 FP - WordPress
+#            editor add media add image") - a different, independent
+#            report, not the same issue as 941180's.
+#
+# Scoped narrowly: only the wp-json REST API, only the two args that
+# legitimately carry Gutenberg's block markup, only these two rules -
+# everything else on this branch still gets checked normally.
+SecRule REQUEST_FILENAME "@rx /wp-json/wp/v2/" \
+    "id:1000010,\
+    phase:1,\
+    pass,\
+    t:none,\
+    nolog,\
+    ctl:ruleRemoveTargetById=941180;ARGS:json.content,\
+    ctl:ruleRemoveTargetById=941180;ARGS:json.excerpt,\
+    ctl:ruleRemoveTargetById=941160;ARGS:json.content,\
+    ctl:ruleRemoveTargetById=941160;ARGS:json.excerpt"
