@@ -1,0 +1,40 @@
+# MediaWiki at the root URL with clean URLs (/PageName -> index.php).
+#
+# IMPORTANT: RewriteCond directives bind ONLY to the immediately following
+# RewriteRule. An unconditioned catch-all here previously rewrote EVERYTHING -
+# including /load.php (ResourceLoader: all CSS/JS), /api.php and static assets
+# - to index.php, which made MediaWiki return 404s and rendered pages without
+# any styling.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+
+# DirectoryIndex: index.php before index.html so Apache serves MediaWiki
+DirectoryIndex index.php index.html
+
+# Explicitly skip MediaWiki front controllers and static assets
+RewriteRule ^favicon\.ico$ - [L]
+RewriteRule ^load\.php$ - [L]
+RewriteRule ^api\.php$ - [L]
+RewriteRule ^rest\.php$ - [L]
+# Platform healthcheck probe - without this the clean-URL rewrite sent it to
+# index.php and MediaWiki 301'd it to /Health.php (capitalized title), which
+# made deployments fail the healthcheck even though Apache was perfectly fine.
+RewriteRule ^health\.php$ - [L]
+RewriteRule ^resources/ - [L]
+RewriteRule ^images/ - [L]
+
+# Short alias: /api -> api.php (MediaWiki has api.php, not api/index.php)
+RewriteRule ^api$ api/ [R=301,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/?$ api.php [L]
+
+# Clean URLs: anything that is NOT a real file or directory goes to index.php.
+# Real files (load.php, api.php, resources/*, skins/*, images/*) are served
+# directly by Apache, so CSS/JS keep working.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^favicon\.ico$ - [L]
+RewriteRule ^(.*)$ index.php [L]
+</IfModule>
