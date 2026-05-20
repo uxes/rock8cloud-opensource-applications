@@ -1,0 +1,54 @@
+# Local S3 proxy: rewrites only the User-Agent header, nothing else.
+#
+# DIAGNOSTIC BUILD - see docker/entrypoint.sh comment for why. Previous
+# version of this file also rewrote Host to a virtual-hosted style
+# (<bucket>.__S3HOST__), which almost certainly broke SigV4 signature
+# validation: minio-go signs the request using the Host it was configured
+# to connect to (the literal endpoint string, e.g. "127.0.0.1:9000"), and
+# AWS SigV4 includes Host as a signed header - if a proxy changes Host
+# before the request reaches the S3 server, the server recomputes a
+# different signature than the client sent and (correctly) rejects it.
+# This version preserves Host exactly as the client sent it
+# (`proxy_set_header Host $http_host`, overriding nginx's own default of
+# substituting $proxy_host) so the signature stays valid, at the cost of
+# not fixing path-style addressing - Rock8Cloud's Garage gateway is expected to
+# still reject path-style bucket access. The point of this build is to
+# confirm THAT theory: if the failure mode changes from a signature/auth
+# error to a routing/NoSuchBucket-style error, Host-rewriting was the
+# actual problem, not a real permissions issue.
+worker_processes 1;
+pid /tmp/nginx-s3.pid;
+error_log /tmp/nginx-s3-error.log warn;
+
+events {
+    worker_connections 256;
+}
+
+http {
+    access_log /tmp/nginx-s3-access.log;
+
+    client_body_temp_path /tmp/nginx/client;
+    proxy_temp_path       /tmp/nginx/proxy;
+    fastcgi_temp_path     /tmp/nginx/fastcgi;
+    uwsgi_temp_path       /tmp/nginx/uwsgi;
+    scgi_temp_path        /tmp/nginx/scgi;
+
+    client_max_body_size 0;
+    proxy_request_buffering off;
+    proxy_http_version 1.1;
+
+    resolver __RESOLVER__ ipv6=off valid=30s;
+
+    server {
+        listen 127.0.0.1:9000;
+
+        location / {
+            # Preserve the client's original Host (what it signed against) -
+            # do NOT let nginx substitute $proxy_host here.
+            proxy_set_header Host $http_host;
+            proxy_set_header User-Agent "rock8-s3-proxy";
+            proxy_ssl_server_name on;
+            proxy_pass https://__S3HOST__;
+        }
+    }
+}
