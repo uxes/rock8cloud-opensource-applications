@@ -1,0 +1,68 @@
+# Gatus configuration - Rock8Cloud deployment.
+#
+# DB credentials are injected as env vars by linking a Rock8Cloud Postgres service
+# (HOST->DB_HOST, PORT->DB_PORT, NAME->DB_DATABASE, USER->DB_USER,
+# PASSWORD->DB_PASSWORD). Gatus expands ${VAR} in this file at startup.
+
+storage:
+  type: postgres
+  # Rock8Cloud Postgres enforces TLS (pg_hba.conf rejects "no encryption").
+  path: "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=require"
+
+ui:
+  title: Uptime
+  header: Uptime status
+
+# Example endpoints matching the other apps in this repo - replace the
+# URLs with your own deployment's actual subdomains.
+endpoints:
+  - name: MediaWiki
+    url: https://your-mediawiki.apps.rock8.cloud/health.php
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: WordPress
+    url: https://your-wordpress.apps.rock8.cloud/
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Vaultwarden
+    url: https://your-vaultwarden.apps.rock8.cloud/alive
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Wiki.js
+    url: https://your-wikijs.apps.rock8.cloud/
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Mattermost
+    # Pod-alive check only if you hit the same S3-gateway limitation
+    # documented in the mattermost branch's README.md - confirms the
+    # container is up, not that file uploads work.
+    url: https://your-mattermost.apps.rock8.cloud/
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Zipline
+    url: https://your-zipline.apps.rock8.cloud/
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Shlink API
+    url: https://your-shlink-api.apps.rock8.cloud/rest/health
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Shlink Web UI
+    url: https://your-shlink-web.apps.rock8.cloud/
+    interval: 60s
+    conditions:
+      - "[STATUS] == 200"
